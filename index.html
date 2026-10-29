@@ -1,1 +1,165 @@
 
+
+
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OliCraft Launcher</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  background: #101b14;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+h1 { color: #78e09a; }
+.card {
+  background: #1b2c21;
+  border: 1px solid #45634d;
+  border-radius: 14px;
+  padding
+  margin: 16px 0;
+}
+button, input, select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 13px;
+  margin-top: 10px;
+  border-radius: 8px;
+  font-size: 16px;
+}
+button {
+  background: #78e09a;
+  color: #102016;
+  border: 0;
+  font-weight: bold;
+}
+input, select {
+  background: #101b14;
+  color: white;
+  border: 1px solid #45634d;
+}
+p { color: #b8cbbd; }
+</style>
+</head>
+<body>
+
+<h1>⛏ OliCraft Launcher</h1>
+<p>Tvůj Minecraft Java launcher pro iPhone</p>
+
+<div class="card">
+  <h2>🎮 Výběr verze</h2>
+  <select id="version">
+    <option>1.21.11</option>
+  </select>
+  <button onclick="play()">PLAY</button>
+  <p id="status">Launcher je připraven.</p>
+</div>
+
+<div class="card">
+  <h2>🌍 Moje servery</h2>
+  <input id="serverName" placeholder="Název serveru">
+  <input id="serverAddress" placeholder="Adresa serveru">
+  <button onclick="addServer()">Přidat server</button>
+  <div id="servers"></div>
+</div>
+
+<div class="card">
+  <h2>🧩 Mody</h2>
+  <p>Správa modů bude přidána v další fázi vývoje.</p>
+</div>
+
+<div class="card">
+  <h2>⚙️ Nastavení</h2>
+  <p>OliCraft Launcher • Neoficiální projekt</p>
+</div>
+
+<script>
+function play() {
+  document.getElementById("status").textContent =
+    "Herní engine zatím není připojen.";
+}
+
+let servers = [];
+
+try {
+  servers = JSON.parse(
+    localStorage.getItem("olicraftServers") || "[]"
+  );
+  if (!Array.isArray(servers)) servers = [];
+} catch {
+  servers = [];
+}
+
+function renderServers() {
+  const container = document.getElementById("servers");
+  container.replaceChildren();
+
+  servers.forEach((server, index) => {
+    const item = document.createElement("div");
+    item.className = "card";
+
+    const name = document.createElement("strong");
+    name.textContent = server.name;
+
+    const address = document.createElement("p");
+    address.textContent = server.address;
+
+    const remove = document.createElement("button");
+    remove.textContent = "Odebrat";
+    remove.onclick = function() {
+      servers.splice(index, 1);
+      saveServers();
+      renderServers();
+    };
+
+    item.append(name, address, remove);
+    container.append(item);
+  });
+}
+
+function saveServers() {
+  try {
+    localStorage.setItem(
+      "olicraftServers", JSON.stringify(servers)
+    );
+  } catch {
+    document.getElementById("status").textContent =
+      "Ukládání není dostupné.";
+  }
+}
+
+function addServer() {
+  const name = document.getElementById("serverName")
+    .value.trim();
+  const address = document.getElementById("serverAddress")
+    .value.trim();
+
+  if (!name || !address ||
+      /[\s/\\]/.test(address) ||
+      address.includes("://")) {
+    alert("Zadej název a platný formát adresy serveru.");
+    return;
+  }
+
+  if (servers.length >= 50) {
+    alert("Můžeš uložit maximálně 50 serverů.");
+    return;
+  }
+
+  servers.push({name, address});
+  saveServers();
+  renderServers();
+
+  document.getElementById("serverName").value = "";
+  document.getElementById("serverAddress").value = "";
+}
+
+renderServers();
+</script>
+
+</body>
+</html>
