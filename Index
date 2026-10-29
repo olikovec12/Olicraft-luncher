@@ -1,0 +1,252 @@
+
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101510">
+<title>OliCraft Launcher</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg:#0d110e;
+  --panel:#171e19;
+  --border:#2c3a30;
+  --green:#65e572;
+  --text:#f1f5f1;
+  --muted:#a5b4a8;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+header {
+  padding:22px 18px; border-bottom:1px solid var(--border);
+  background:#111813; display:flex; align-items:center;
+  justify-content:space-between; gap:12px;
+}
+.logo { font-weight:900; font-size:21px; }
+.logo span { color:var(--green); }
+.status { color:var(--green); font-size:12px; }
+main { width:min(760px,100%); margin:auto; padding:22px 16px 50px; }
+.hero {
+  padding:26px 20px; border:1px solid var(--border);
+  border-radius:20px; background:linear-gradient(145deg,#1b2b20,#131914);
+}
+h1 { font-size:30px; margin:0 0 8px; }
+p { color:var(--muted); line-height:1.5; }
+h2 { font-size:18px; margin:0 0 15px; }
+section {
+  margin-top:18px; padding:20px; border-radius:16px;
+  background:var(--panel); border:1px solid var(--border);
+}
+label { display:block; margin-bottom:8px; color:var(--muted); font-size:13px; }
+select,input {
+  width:100%; min-height:46px; padding:12px;
+  background:#0d130f; color:var(--text);
+  border:1px solid var(--border); border-radius:10px;
+  font-size:16px; margin-bottom:12px;
+}
+button {
+  border:0; border-radius:10px; padding:13px 16px;
+  min-height:44px; font-size:15px; font-weight:700; cursor:pointer;
+}
+.primary { background:var(--green); color:#0b160c; width:100%; }
+.secondary { background:#28352b; color:var(--text); }
+.danger { background:#492424; color:#ffdede; }
+.server {
+  border:1px solid var(--border); border-radius:12px;
+  padding:13px; margin-top:10px; overflow-wrap:anywhere;
+}
+.server strong { display:block; margin-bottom:5px; }
+.server small { color:var(--muted); }
+.server-actions { display:flex; gap:8px; margin-top:12px; }
+.server-actions button { flex:1; }
+.row { display:flex; gap:10px; align-items:center; }
+.row button { flex-shrink:0; }
+.notice {
+  display:none; margin-top:12px; padding:12px;
+  border-radius:10px; background:#26382a; line-height:1.5;
+}
+footer { text-align:center; padding:25px 12px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⛏️ Oli<span>Craft</span></div>
+  <div class="status">● WEB ONLINE</div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>OliCraft Launcher</h1>
+    <p>Tvůj Minecraft Java launcher. Spravuj své verze a servery na jednom místě.</p>
+  </div>
+
+  <section>
+    <h2>🎮 Výběr verze</h2>
+    <label for="version">Minecraft Java Edition</label>
+    <select id="version">
+      <option value="1.21.11">1.21.11</option>
+      <option value="1.21.10">1.21.10</option>
+      <option value="1.21.8">1.21.8</option>
+      <option value="1.21.5">1.21.5</option>
+      <option value="1.20.1">1.20.1</option>
+    </select>
+    <button class="primary" id="play">▶ PLAY</button>
+    <div class="notice" id="playNotice"></div>
+  </section>
+
+  <section>
+    <h2>🌍 Moje servery</h2>
+    <label for="serverName">Název serveru</label>
+    <input id="serverName" placeholder="Např. Můj server">
+    <label for="serverAddress">Adresa serveru</label>
+    <input id="serverAddress" placeholder="play.example.net">
+    <button class="primary" id="addServer">＋ Přidat server</button>
+    <div id="servers"></div>
+  </section>
+
+  <section>
+    <h2>🧩 Mody</h2>
+    <p>Správa a instalace Java modů zatím není připojena. Tuto funkci připravíme v další fázi.</p>
+  </section>
+
+  <section>
+    <h2>⚙️ Nastavení</h2>
+    <label for="theme">Vzhled launcheru</label>
+    <select id="theme">
+      <option value="green">Minecraft zelená</option>
+      <option value="blue">Modrá</option>
+      <option value="purple">Fialová</option>
+    </select>
+    <button class="secondary" id="clearServers">Vymazat uložené servery</button>
+    <div class="notice" id="settingsNotice"></div>
+  </section>
+</main>
+
+<footer>OliCraft Launcher • Neoficiální projekt • Minecraft je ochranná známka Mojang Studios.</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function readServers() {
+  try { return JSON.parse(localStorage.getItem("olicraft-servers") || "[]"); }
+  catch { return []; }
+}
+
+let servers = readServers();
+
+function saveServers() {
+  localStorage.setItem("olicraft-servers", JSON.stringify(servers));
+  renderServers();
+}
+
+function renderServers() {
+  const root = $("servers");
+  root.replaceChildren();
+
+  if (!servers.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "Zatím nemáš uložený žádný server.";
+    root.appendChild(empty);
+    return;
+  }
+
+  servers.forEach((server, index) => {
+    const card = document.createElement("div");
+    card.className = "server";
+
+    const name = document.createElement("strong");
+    name.textContent = server.name;
+
+    const address = document.createElement("small");
+    address.textContent = server.address;
+
+    const actions = document.createElement("div");
+    actions.className = "server-actions";
+
+    const copy = document.createElement("button");
+    copy.className = "secondary";
+    copy.textContent = "Kopírovat adresu";
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(server.address);
+        alert("Adresa serveru byla zkopírována.");
+      } catch {
+        prompt("Zkopíruj adresu serveru:", server.address);
+      }
+    };
+
+    const remove = document.createElement("button");
+    remove.className = "danger";
+    remove.textContent = "Odstranit";
+    remove.onclick = () => {
+      servers.splice(index, 1);
+      saveServers();
+    };
+
+    actions.append(copy, remove);
+    card.append(name, address, actions);
+    root.appendChild(card);
+  });
+}
+
+$("addServer").onclick = () => {
+  const name = $("serverName").value.trim();
+  const address = $("serverAddress").value.trim();
+
+  if (!name || !address) {
+    alert("Vyplň název i adresu serveru.");
+    return;
+  }
+
+  if (/\s/.test(address)) {
+    alert("Adresa serveru nesmí obsahovat mezery.");
+    return;
+  }
+
+  servers.push({ name, address });
+  saveServers();
+  $("serverName").value = "";
+  $("serverAddress").value = "";
+};
+
+$("play").onclick = () => {
+  const notice = $("playNotice");
+  notice.style.display = "block";
+  notice.textContent =
+    "Vybraná verze: " + $("version").value +
+    ". Webové rozhraní funguje, ale herní engine zatím není připojen. Minecraft se tímto tlačítkem ještě nespustí.";
+};
+
+$("clearServers").onclick = () => {
+  if (confirm("Opravdu chceš odstranit všechny uložené servery?")) {
+    servers = [];
+    saveServers();
+    $("settingsNotice").style.display = "block";
+    $("settingsNotice").textContent = "Uložené servery byly odstraněny.";
+  }
+};
+
+$("theme").onchange = () => {
+  const colors = {
+    green: "#65e572",
+    blue: "#65b7ff",
+    purple: "#c19aff"
+  };
+  document.documentElement.style.setProperty("--green", colors[$("theme").value]);
+  localStorage.setItem("olicraft-theme", $("theme").value);
+};
+
+const savedTheme = localStorage.getItem("olicraft-theme");
+if (savedTheme && ["green", "blue", "purple"].includes(savedTheme)) {
+  $("theme").value = savedTheme;
+  $("theme").dispatchEvent(new Event("change"));
+}
+
+renderServers();
+</script>
+</body>
+</html>
