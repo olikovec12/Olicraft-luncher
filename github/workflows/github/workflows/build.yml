@@ -1,0 +1,61 @@
+
+name: Build OliCraft Launcher
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Download Amethyst source
+        uses: actions/checkout@v4
+        with:
+          repository: zodiuss/Amethyst
+          ref: main
+          submodules: recursive
+
+      - name: Set up Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Install dependencies
+        run: |
+          brew install ldid wget make
+          sudo mkdir -p /usr/local/bin
+          sudo ln -sf /opt/homebrew/bin/gmake /usr/local/bin/gmake
+
+      - name: Build Java components
+        run: |
+          export PATH="${JAVA_HOME}/bin:$PATH"
+          make clean JAVA_HOME="${JAVA_HOME}" BOOTJDK="${JAVA_HOME}/bin" || true
+          make JAVA_HOME="${JAVA_HOME}" BOOTJDK="${JAVA_HOME}/bin"
+
+      - name: Build iOS app
+        run: |
+          SCHEME=$(xcodebuild -project Amethyst.xcodeproj -list | awk '/Schemes:/{flag=1;next} /^$/{flag=0} flag' | sed 's/^[[:space:]]*//' | head -n 1)
+          test -n "$SCHEME"
+          xcodebuild -project Amethyst.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            clean build
+
+      - name: Rename and package app
+        run: |
+          APP=$(find artifacts/Payload -maxdepth 2 -name '*.app' -type d | head -n 1)
+          test -n "$APP"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName OliCraft Launcher' "$APP/Info.plist" || true
+          cd artifacts
+          zip -r ../OliCraft-Launcher.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: OliCraft-Launcher
+          path: OliCraft-Launcher.ipa
