@@ -38,20 +38,7 @@ jobs:
           make clean JAVA_HOME="$JDK" BOOTJDK="$JDK/bin" || true
           make JAVA_HOME="$JDK" BOOTJDK="$JDK/bin"
 
-      - name: Sestavit iOS aplikaci
-        run: |
-          JDK="${{ steps.java.outputs.path }}"
-          SCHEME=$(xcodebuild -project Amethyst.xcodeproj -list | awk '/Schemes:/{flag=1;next} /^$/{flag=0} flag' | sed 's/^[[:space:]]*//' | head -n 1)
-          test -n "$SCHEME"
-          xcodebuild -project Amethyst.xcodeproj \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -sdk iphoneos \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            JAVA_HOME="$JDK" \
-            BOOTJDK="$JDK/bin" \
-            clean build
+      
 
       - name: Připravit IPA
         run: |
