@@ -1,10 +1,69 @@
-name: OliCraft test
+
+name: OliCraft Launcher Build
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: macos-14
+
     steps:
-      - run: echo "OliCraft funguje"
+      - name: Stáhnout Amethyst
+        uses: actions/checkout@v4
+        with:
+          repository: AngelAuraMC/Amethyst-iOS
+          ref: main
+          submodules: recursive
+
+      - name: Nastavit Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Nastavit Javu
+        uses: actions/setup-java@v4
+        id: java
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Nainstalovat nástroje
+        run: |
+          brew install ldid wget make
+          sudo mkdir -p /usr/local/bin
+          sudo ln -sf /opt/homebrew/bin/gmake /usr/local/bin/gmake
+
+      - name: Sestavit Java komponenty
+        run: |
+          JDK="${{ steps.java.outputs.path }}"
+          export PATH="$JDK/bin:$PATH"
+          make clean JAVA_HOME="$JDK" BOOTJDK="$JDK/bin" || true
+          make JAVA_HOME="$JDK" BOOTJDK="$JDK/bin"
+
+      - name: Sestavit iOS aplikaci
+        run: |
+          JDK="${{ steps.java.outputs.path }}"
+          SCHEME=$(xcodebuild -project Amethyst.xcodeproj -list | awk '/Schemes:/{flag=1;next} /^$/{flag=0} flag' | sed 's/^[[:space:]]*//' | head -n 1)
+          test -n "$SCHEME"
+          xcodebuild -project Amethyst.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            JAVA_HOME="$JDK" \
+            BOOTJDK="$JDK/bin" \
+            clean build
+
+      - name: Připravit IPA
+        run: |
+          mkdir -p Payload
+          APP=$(find artifacts -name '*.app' -type d | head -n 1)
+          test -n "$APP"
+          cp -R "$APP" Payload/
+          zip -r OliCraft-Launcher.ipa Payload
+
+      - name: Uložit IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: OliCraft-Launcher-IPA
+          path: OliCraft-Launcher.ipa
