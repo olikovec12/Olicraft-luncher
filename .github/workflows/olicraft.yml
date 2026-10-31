@@ -11,7 +11,7 @@ jobs:
       - name: Stáhnout Amethyst
         uses: actions/checkout@v4
         with:
-          repository: AngelAuraMC/Amethyst-iOS
+          repository: olikovec12/Amethyst-ios
           ref: main
           submodules: recursive
 
