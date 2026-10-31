@@ -1,0 +1,83 @@
+
+name: OliCraft Launcher - sestavení
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Stáhnout zdrojový kód Amethystu
+        uses: actions/checkout@v4
+        with:
+          repository: zodiuss/Amethyst
+          ref: main
+          path: Amethyst
+          submodules: recursive
+
+      - name: Nastavit Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Nastavit Javu
+        uses: actions/setup-java@v4
+        id: java
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Nainstalovat potřebné nástroje
+        run: |
+          brew install ldid wget make
+          sudo mkdir -p /usr/local/bin
+          sudo ln -sf /opt/homebrew/bin/gmake /usr/local/bin/gmake
+
+      - name: Přejmenovat aplikaci
+        working-directory: Amethyst
+        run: |
+          /usr/libexec/PlistBuddy -c \
+          'Set :CFBundleDisplayName OliCraft Launcher' \
+          Natives/Info.plist
+
+      - name: Sestavit Java komponenty
+        working-directory: Amethyst
+        run: |
+          JDK="${{ steps.java.outputs.path }}"
+          export PATH="$JDK/bin:$PATH"
+          make clean JAVA_HOME="$JDK" BOOTJDK="$JDK/bin" || true
+          make JAVA_HOME="$JDK" BOOTJDK="$JDK/bin"
+
+      - name: Sestavit iPhone aplikaci
+        working-directory: Amethyst
+        run: |
+          JDK="${{ steps.java.outputs.path }}"
+          SCHEME=$(xcodebuild -project Amethyst.xcodeproj -list | awk '/Schemes:/{flag=1;next} /^$/{flag=0} flag' | sed 's/^[[:space:]]*//' | head -n 1)
+          test -n "$SCHEME"
+          xcodebuild -project Amethyst.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEBUG_INFORMATION_FORMAT=dwarf \
+            JAVA_HOME="$JDK" \
+            BOOTJDK="$JDK/bin" \
+            clean build
+
+      - name: Připravit IPA
+        working-directory: Amethyst
+        run: |
+          mkdir -p artifacts/Payload
+          APP=$(find artifacts -name '*.app' -type d | head -n 1)
+          test -n "$APP"
+          mkdir -p ../package/Payload
+          cp -R "$APP" ../package/Payload/
+          cd ../package
+          zip -r ../OliCraft-Launcher.ipa Payload
+
+      - name: Nahrát výslednou aplikaci
+        uses: actions/upload-artifact@v4
+        with:
+          name: OliCraft-Launcher-IPA
+          path: OliCraft-Launcher.ipa
